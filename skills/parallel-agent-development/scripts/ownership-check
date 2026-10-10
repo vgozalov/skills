@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+# Verify that a parallel wave stayed inside its ownership boundaries.
+#
+# Usage: ownership-check PLAN_FILE BASE HEAD TASKS
+#   TASKS is comma-separated task numbers, e.g. 2,3,4.
+#
+# Plan parsing: a task starts at a line `### Task <N>:`; its Owns are the
+# backticked tokens on its `**Owns:**` line. Frozen globs are the backticked
+# tokens on the plan's `Frozen during waves:` line. `**` in a glob behaves as
+# `*`; matching is `[[ $file == $glob ]]`, where `*` also matches `/`. `[`, `]`
+# and `?` are literal characters, not glob syntax.
+#
+# Every commit in BASE..HEAD is checked, file by file:
+#   - a frozen file is a violation;
+#   - a file matching no listed task's Owns is a violation;
+#   - a commit whose files match two or more tasks is a violation.
+#
+# Exit 0 (prints "ownership-check: <n> commit(s) clean"), 1 (one line per
+# violation), 2 (usage error, or a listed task has no **Owns:** line), or
+# 3 (HEAD is not a descendant of BASE, or the range is empty).
+set -euo pipefail
+
+usage() {
+  echo "usage: ownership-check PLAN_FILE BASE HEAD TASKS" >&2
+  exit 2
+}
+
+[ $# -eq 4 ] || usage
+plan=$1
+base=$2
+head=$3
+tasks=$4
+
+[ -f "$plan" ] || { echo "no such plan file: $plan" >&2; exit 2; }
+git rev-parse --verify --quiet "$base^{commit}" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
+git rev-parse --verify --quiet "$head^{commit}" >/dev/null || { echo "bad HEAD: $head" >&2; exit 2; }
+case $tasks in
+  "" | *[!0-9,]* | ,* | *, | *,,*) echo "bad TASKS (want comma-separated numbers): $tasks" >&2; exit 2 ;;
+esac
+
+# Plan -> "<task>\t<glob>" lines; the pseudo-task F carries the frozen globs.
+parsed=$(awk '
+  function emit(key, line,    rest) {
+    rest = line
+    while (match(rest, /`[^`]+`/)) {
+      print key "\t" substr(rest, RSTART + 1, RLENGTH - 2)
+      rest = substr(rest, RSTART + RLENGTH)
+    }
+  }
+  /^### Task [0-9]+:/ { t = $3; sub(/:.*/, "", t); next }
+  /^### / { t = "" }
+  /Frozen during waves:/ { line = $0; sub(/.*Frozen during waves:/, "", line); emit("F", line) }
+  t != "" && /^\*\*Owns:\*\*/ { line = $0; sub(/^\*\*Owns:\*\*/, "", line); emit(t, line) }
+' "$plan")
+
+# glob_matches FILE KEY: succeed if FILE matches any glob parsed under KEY.
+glob_matches() {
+  local file=$1 key=$2 k g
+  while IFS=$'\t' read -r k g; do
+    [ "$k" = "$key" ] || continue
+    g=${g//\*\*/*}
+    # [ ] ? are literal path characters (e.g. Next.js `[id]`), not glob syntax.
+    g=${g//\[/\\[}
+    g=${g//\]/\\]}
+    g=${g//\?/\\?}
+    # shellcheck disable=SC2053 # the unquoted right-hand side is the glob
+    if [[ $file == $g ]]; then return 0; fi
+  done <<EOT
+$parsed
+EOT
+  return 1
+}
+
+# Range guards (exit 3), mirroring review-package: a wrong-branch HEAD must not
+# read as "0 commit(s) clean".
+git merge-base --is-ancestor "$base" "$head" || { echo "HEAD is not a descendant of BASE: ${base}..${head}" >&2; exit 3; }
+[ "$(git rev-list --count "$base..$head")" -gt 0 ] || { echo "empty commit range: ${base}..${head}" >&2; exit 3; }
+
+task_list=${tasks//,/ }
+for t in $task_list; do
+  t=$((10#$t))
+  if ! printf '%s\n' "$parsed" | grep -q "^$t"$'\t'; then
+    echo "Task $t has no **Owns:** line" >&2
+    exit 2
+  fi
+done
+
+violations=0
+commits=0
+while IFS= read -r commit; do
+  [ -n "$commit" ] || continue
+  commits=$((commits + 1))
+  short=$(git rev-parse --short=7 "$commit")
+  subject=$(git log -1 --format=%s "$commit")
+  matched=""
+  commit_bad=0
+  lines=""
+
+  while IFS= read -r -d '' file; do
+    if glob_matches "$file" F; then
+      lines="$lines$short $file: frozen during waves
+"
+      commit_bad=1
+      continue
+    fi
+    hit=""
+    for t in $task_list; do
+      t=$((10#$t))
+      if glob_matches "$file" "$t"; then
+        hit=$t
+        case " $matched " in
+          *" $t "*) ;;
+          *) matched="$matched $t" ;;
+        esac
+      fi
+    done
+    if [ -z "$hit" ]; then
+      lines="$lines$short $file: outside Owns of tasks $tasks
+"
+      commit_bad=1
+    fi
+  done < <(git diff-tree --no-commit-id --name-only -r -z "$commit")
+
+  # shellcheck disable=SC2086 # intentional word splitting of the matched list
+  set -- $matched
+  if [ $# -ge 2 ]; then
+    joined=$1
+    shift
+    while [ $# -gt 1 ]; do
+      joined="$joined, $1"
+      shift
+    done
+    lines="$lines$short: spans tasks $joined and $1
+"
+    commit_bad=1
+  fi
+
+  if [ "$commit_bad" -eq 1 ]; then
+    violations=$((violations + 1))
+    printf '%s' "$lines"
+    case $subject in
+      *"auto-save session checkpoint"*)
+        echo "$short: looks like an auto-commit Stop hook ran mid-wave" ;;
+    esac
+  fi
+done < <(git rev-list --reverse "$base..$head")
+
+if [ "$violations" -gt 0 ]; then
+  exit 1
+fi
+echo "ownership-check: $commits commit(s) clean"

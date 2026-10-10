@@ -1,0 +1,2 @@
+# This is placeholder for  log of what agents have done, and an initial git commit that shows what files were added.
+# https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents

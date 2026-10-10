@@ -1,0 +1,57 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  SHELLCHECK_VERSION: "0.11.0"
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # One pinned shellcheck on every runner: distro packages lag (Ubuntu ships
+      # 0.9.0, which reports findings 0.11.0 does not), so the gate would differ by OS.
+      - name: Install shellcheck ${{ env.SHELLCHECK_VERSION }}
+        run: |
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64)   asset=linux.x86_64;   sha=b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6 ;;
+            macOS-ARM64) asset=darwin.aarch64; sha=339b930feb1ea764467013cc1f72d09cd6b869ebf1013296ba9055ab2ffbd26f ;;
+            *) echo "no pinned shellcheck for ${RUNNER_OS}-${RUNNER_ARCH}"; exit 1 ;;
+          esac
+          tarball="$RUNNER_TEMP/shellcheck.tar.gz"
+          curl -fsSL -o "$tarball" "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.${asset}.tar.gz"
+          echo "${sha}  ${tarball}" | shasum -a 256 -c -
+          tar -xzf "$tarball" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/shellcheck-v${SHELLCHECK_VERSION}" >> "$GITHUB_PATH"
+
+      # run.sh skips its shellcheck pass when shellcheck is missing; CI must not.
+      - name: Require shellcheck ${{ env.SHELLCHECK_VERSION }}
+        run: |
+          shellcheck --version
+          shellcheck --version | grep -qx "version: ${SHELLCHECK_VERSION}"
+
+      - name: Run tests (bash 5)
+        if: runner.os == 'Linux'
+        run: bash tests/run.sh
+
+      # Consumers run these scripts under macOS's /bin/bash 3.2. The shim makes
+      # every nested `bash` and `#!/usr/bin/env bash` call resolve to 3.2 too.
+      - name: Run tests (macOS /bin/bash 3.2)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p "$RUNNER_TEMP/bash32"
+          ln -sf /bin/bash "$RUNNER_TEMP/bash32/bash"
+          PATH="$RUNNER_TEMP/bash32:$PATH" /bin/bash tests/run.sh

@@ -1,0 +1,3 @@
+# Global skills: install.sh --global
+anthropics/skills                   docx pdf xlsx pptx doc-coauthoring skill-creator
+anthropics/claude-plugins-official  claude-md-improver claude-automation-recommender
