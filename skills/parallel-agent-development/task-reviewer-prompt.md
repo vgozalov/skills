@@ -72,11 +72,20 @@ Subagent (general-purpose):
 
     ## Tests
 
+    The test evidence a task owes is exactly its verification scope: the
+    test files the change touches, run by path, and a typecheck of each
+    package it edited. Judge the report against that contract — a touched
+    test file or edited package with no run in the report is a gap. Full
+    suites, end-to-end and browser suites, and break-and-restore checks
+    belong to the plan's final verification task. When the brief IS the
+    final verification task, its evidence is every suite's output.
+
     The implementer already ran the tests and reported results with TDD
     evidence for exactly this code. Do not re-run the suite to confirm their
     report. Run a test only when reading the code raises a specific doubt
     that no existing run answers — and then a focused test, never a
-    package-wide suite, race detector run, or repeated/high-count loop. If
+    package-wide suite, end-to-end or browser suite, race detector run, or
+    repeated/high-count loop. If
     heavy validation seems warranted, recommend it in your report instead of
     running it. If you cannot run commands in this environment, name the
     test you would run.

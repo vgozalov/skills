@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Pins the parallel-briefs skill: valid frontmatter, the four-block brief template, the three phases.
+# Pins the parallel-briefs skill: valid frontmatter, the five-block brief template, the three phases.
 
 SKILL="$REPO_ROOT/skills/parallel-briefs"
 
@@ -7,14 +7,15 @@ test_frontmatter() {
   assert_skill_frontmatter "$SKILL"
 }
 
-test_brief_template_has_four_blocks() {
+test_brief_template_has_five_blocks() {
   local body heading
   body=$(cat "$SKILL/SKILL.md")
   for heading in \
     '### Your files' \
     '### Do not touch' \
     '### Read first' \
-    '### If the shared kit is missing something'; do
+    '### If the shared kit is missing something' \
+    '### Verify'; do
     assert_contains "$body" "$heading" "template heading"
   done
 }

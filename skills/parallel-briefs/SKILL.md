@@ -15,7 +15,7 @@ Build what every agent will consume: contracts, types, shared components, regist
 
 ## Phase 2, sections (parallel, at most four agents)
 
-One brief per agent, each covering a disjoint slice of the work. More than four concurrent agents costs more in merge conflicts and review than it saves in wall-clock time. If the work has more slices, group them or run a second wave after Phase 3.
+One brief per agent, each covering a disjoint slice of the work. More than four concurrent agents costs more in merge conflicts and review than it saves in wall-clock time. If the work has more slices, group them or run a second wave after Phase 3. A docs slice written from the spec rather than from the code runs here, beside the code slices.
 
 ## Phase 3, merge (serial)
 
@@ -24,11 +24,11 @@ One agent, after every Phase 2 agent has reported:
 1. Fold each "Proposed for kit" item into the kit.
 2. Delete the local copies the agents wrote, and merge duplicate helpers into one.
 3. Edit the registries, barrels and entry points that were frozen during Phase 2.
-4. Run the full test suite, not only the per-section tests.
+4. Run every suite once: each package's tests, every typecheck, and every end-to-end or browser suite at each configured viewport. This is the only full run; Phase 2 agents ran only their own tests.
 
 ## The brief template
 
-Write each brief to a file. Three blocks are identical in every brief; only "Your files" differs.
+Write each brief to a file. Four blocks are identical in every brief; only "Your files" differs.
 
 ```markdown
 ### Your files
@@ -46,6 +46,10 @@ Write each brief to a file. Three blocks are identical in every brief; only "You
 ### If the shared kit is missing something
 
 Write it in one of your own files and list it in your report under "Proposed for kit": what it is, where you put it, where it should live. Do not edit the kit and do not stop to ask.
+
+### Verify
+
+Your verification is exactly: the test files you created or edited, plus the existing test file of each source file you modified, run by path; and a typecheck of each package you edited. Every suite, end-to-end included, runs once in the merge phase. If the typecheck reports errors only in files outside "Your files", they are a sibling's unfinished work: list them in your report and leave those files alone.
 ```
 
 Add the task itself (requirements, acceptance checks) and the report format around these blocks. The blocks are the part that keeps agents from colliding.
@@ -61,7 +65,7 @@ Add the task itself (requirements, acceptance checks) and the report format arou
 
 With an agent tool, send all Phase 2 dispatches in one message so they run concurrently, each with its brief file path. Without one, open one session per brief.
 
-Tell every agent to stage and commit by explicit path only, and to run only its own tests, since siblings have uncommitted work in the same tree.
+Tell every agent to stage and commit by explicit path only, since siblings have uncommitted work in the same tree. The brief's "Verify" block keeps each agent's test runs to its own files.
 
 ## Relation to plans
 

@@ -154,7 +154,8 @@ a ledger file, not only in todos.
   that happens, recover from `git log`.
 
 Read the plan once, note its context and Global Constraints, and create a
-todo per task. If the plan names a Spec, read that too: the spec is the
+todo per task. If the plan's last task is not a final verification task,
+add one as the last todo (see "Verification Budget"). If the plan names a Spec, read that too: the spec is the
 authority the plan argues from, and conflicts inside the plan resolve
 against it. A plan with no reachable spec gets a ledger note saying so —
 rulings made without one are provisional.
@@ -173,11 +174,16 @@ its own text agrees with itself — the tests it specifies against the code it
 specifies, the files it creates against the files it later touches. "The scan
 is clean" without those rows is not a scan you ran.
 
-After the table, group the tasks into waves: consecutive tasks that pass the
+After the table, group the tasks into waves, starting from the plan's
+Parallel layout when it has one: consecutive tasks that pass the
 wave test (see "Parallel waves") share a wave; any task that shares a file or
-an interface with a task in the same group starts the next wave. Write the
+an interface with a task in the same group starts the next wave. A later
+task joins an earlier wave when it passes the wave test against that wave
+and consumes nothing the tasks it skips over produce — a docs task written
+from the spec and the plan's Interfaces blocks is the usual case, and runs
+beside the first wave whose files it does not share. Write the
 wave grouping under the table. Tasks the plan orders by dependency stay in
-plan order across waves.
+plan order across waves. The final verification task runs alone, last.
 
 Write the table to the ledger. Rule on everything you find before execution
 begins — each finding against the plan text that mandates it — and record
@@ -201,8 +207,13 @@ capable available model, not the session default.
 
 **Review tasks**: choose the model with the same judgment, scaled to the
 diff's size, complexity, and risk. A small mechanical diff does not need the
-most capable model; a subtle concurrency change does. Scoped re-reviews of
-small fix diffs take a cheap-to-mid tier.
+most capable model; a subtle concurrency change does.
+
+**Scoped re-reviews** take their model from the size `review-package`
+prints for the fix range: at most 3 files and 50 changed lines (insertions
+plus deletions) → the cheapest tier; anything larger → the tier the task's
+reviewer used. A re-reviewer verdicts a known findings list against a small
+diff, a job the cheapest tier finishes in few turns.
 
 **Fix-loop escalation (rounds 4-5)**: use a model at least one tier above
 the implementer that got stuck.
@@ -214,7 +225,7 @@ most expensive — which silently defeats this section.
 **Turn count beats token price.** Wall-clock and context cost scale with how
 many turns a subagent takes, and the cheapest models routinely take 2-3× the
 turns on multi-step work — costing more overall. Use a mid-tier model as the
-floor for reviewers and for implementers working from prose descriptions.
+floor for task reviewers and for implementers working from prose descriptions.
 When the task's plan text contains the complete code to write, the
 implementation is transcription plus testing: use the cheapest tier for
 that implementer. Single-file mechanical fixes also take the cheapest tier.
@@ -223,6 +234,28 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
 - Touches 1-2 files with a complete spec → cheap model
 - Touches multiple files with integration concerns → standard model
 - Requires design judgment or broad codebase understanding → most capable model
+
+## Verification Budget
+
+Per task and per fix round, an implementer runs exactly two things: the
+test files its change touches, by path, and a typecheck of each package it
+edited. The implementer template carries this contract, the reviewer
+templates judge test evidence against it, and every fix message you send
+names those test files and packages.
+
+Full suites — every package's unit and integration tests, and every
+end-to-end or browser suite at each configured viewport or project — run
+once, in the plan's final verification task, after every other task is
+complete. Dispatch it through the task loop like any task: its implementer
+runs every suite, fixes what fails at the cause, re-runs the failing suites
+and those of each package its fixes touched, and the task review covers
+those fixes. When you add this task yourself, compose its brief from the
+repo's test scripts and the plan's Global Constraints. When its run is
+green and it commits nothing, there is no diff to review: ledger
+`Task <N>: complete (no commits, all suites green at <head7>)`.
+
+Break-and-restore checks are not part of this process: TDD's RED run
+already proves each test fails without its code.
 
 ## The Task Loop
 
@@ -440,16 +473,17 @@ findings, and this framing: "A prior implementer attempted this task
 that survives three resumes usually means the implementer cannot see its
 own problem — fresh eyes and a capability bump in one move.
 
-**Every round, either way:** the implementer fixes, re-runs the tests
-covering the amended code, appends its fix report to the same report file,
-and returns the short contract. Before re-dispatching the reviewer, confirm
-the fix report contains the covering tests, the command run, and the
-output; dispatch the re-review once all three are present. Name the
-covering test files in the fix message — a one-line fix does not need the
-whole suite.
+**Every round, either way:** the implementer fixes, re-runs its
+verification scope for the amended code (the touched test files and the
+typecheck of each package it edited), appends its fix report to the same
+report file, and returns the short contract. Before re-dispatching the
+reviewer, confirm the fix report contains those commands and their output;
+dispatch the re-review once they are present. Name the touched test files
+and the packages to typecheck in the fix message.
 
 **The re-review is scoped.** Run `bash scripts/review-package PLAN_FILE FIX_BASE HEAD`
-where FIX_BASE is the head the previous review saw, and dispatch
+where FIX_BASE is the head the previous review saw, pick the re-reviewer's
+model from the size it prints (see Model Selection), and dispatch
 [re-review-prompt.md](re-review-prompt.md) with the findings list, the
 brief, the report file, and the printed diff path. The re-reviewer verdicts
 each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
@@ -514,6 +548,7 @@ If the final whole-branch review returns findings, dispatch ONE fix subagent
 with the complete findings list — not one fixer per finding.
 Per-finding fixers each rebuild context and re-run suites; a real
 session's final-review fix wave cost more than all its tasks combined.
+The fix subagent's verification is the same budget as a fix round.
 Then run exactly one scoped re-review of the fix wave
 (`bash scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range,
 [re-review-prompt.md](re-review-prompt.md)).
@@ -539,7 +574,11 @@ delete this plan's workspace (`rm -rf <workspace>`) — the git history is
 the record now. Sibling directories belong to other plans; leave them
 alone.
 
-Use superpowers:finishing-a-development-branch.
+Use superpowers:finishing-a-development-branch. Its first step runs the
+full test suite. Copy the final verification task's ledger line before you
+delete the workspace: if HEAD is still the commit that line names, that run
+is the step's evidence — cite it instead of running the suites again. If
+the final fix dispatch moved HEAD, run the step as written.
 
 ## Common Rationalizations
 
@@ -553,6 +592,8 @@ Use superpowers:finishing-a-development-branch.
 | "The fix was small, skip the re-review" | Unreviewed fixes are how regressions land. Every round ends with a scoped re-review. |
 | "Reviews slow the loop down" | The loop without reviews is just unverified churn. Reviews are the loop's brakes and steering. |
 | "These tasks look unrelated, dispatch them together" | Only if the tasks' Owns lines are disjoint and none consumes what another produces. If you cannot name the files, run them serially. |
+| "The docs task is last in the plan, so it waits" | Plan order is not dependency. A task that passes the wave test and consumes nothing from the tasks it skips joins the earlier wave. |
+| "Run the full suite on this task too, just to be safe" | The final verification task runs every suite once, after every task. A per-task full run is that same run, paid once per task. |
 | "Ledger bookkeeping is overhead" | The ledger is what survives compaction. Controllers without one have re-dispatched entire completed task sequences. |
 | "The implementer spawned its own reviewer — free extra assurance" | It's a duplicate seat reviewing the same diff; the task review is the gate. A worker-spawned reviewer is a defect to flag, not rigor. |
 
@@ -604,7 +645,8 @@ Task reviewer: Spec ❌:
 Implementer: Added progress reporting, extracted PROGRESS_INTERVAL constant.
   Re-ran test/recovery.test.js — 10/10 passing. Fix report appended.
 
-[Run review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review]
+[Run review-package PLAN_FILE FIX_BASE HEAD — 2 files changed, 14 lines;
+ dispatch scoped re-review on the cheapest tier]
 Re-reviewer: Missing progress reporting — ADDRESSED (src/recovery.js:41).
   Magic number — ADDRESSED (src/recovery.js:7). New breakage: none.
   Verdict: all findings addressed.
@@ -614,11 +656,18 @@ Re-reviewer: Missing progress reporting — ADDRESSED (src/recovery.js:41).
 
 ...
 
-[After all tasks]
+Task 9: Final verification
+
+[Dispatch implementer: every suite once — each package's tests, every typecheck,
+ e2e at every configured viewport]
+Implementer: all suites green, no commits.
+[Ledger: Task 9: complete (no commits, all suites green at e1f2a3b)]
+
 [Run review-package PLAN_FILE MERGE_BASE HEAD; dispatch final code-reviewer, most capable model]
 Final reviewer: All requirements met. Deferred minors triaged: none block merge.
 
 [Delete this plan's workspace — the record now lives in git]
 
-Done! Using superpowers:finishing-a-development-branch.
+Done! Using superpowers:finishing-a-development-branch — HEAD is still e1f2a3b,
+so Task 9's green run is its test evidence.
 ```

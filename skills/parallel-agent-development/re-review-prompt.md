@@ -63,13 +63,15 @@ Subagent (general-purpose):
 
     ## Tests
 
-    The implementer re-ran the tests covering the amended code and appended
-    the results to the report file. Treat the report as unverified claims:
-    confirm the fix report names the covering tests and shows their output,
-    and verify the claims against the diff. Do not re-run the suite to
-    confirm their report. Run a test only when reading the code raises a
-    specific doubt that no existing run answers — and then a focused test,
-    never a package-wide suite.
+    The implementer re-ran its verification scope for the amended code —
+    the touched test files by path and a typecheck of each package it
+    edited — and appended the results to the report file. Treat the report
+    as unverified claims: confirm the fix report shows those runs and their
+    output, and verify the claims against the diff. Full suites and
+    end-to-end runs belong to the plan's final verification task. Do not
+    re-run the suite to confirm their report. Run a test only when reading
+    the code raises a specific doubt that no existing run answers — and
+    then a focused test, never a package-wide or end-to-end suite.
 
     ## Output Format
 
@@ -101,8 +103,9 @@ Subagent (general-purpose):
 ```
 
 **Placeholders:**
-- `[MODEL]` — REQUIRED: reviewer model per SKILL.md Model Selection; scoped
-  re-reviews of small fix diffs take a cheap-to-mid tier
+- `[MODEL]` — REQUIRED: per SKILL.md Model Selection — the cheapest tier
+  when the size `review-package` printed is at most 3 files and 50 changed
+  lines, otherwise the tier the task's reviewer used
 - `[BRIEF_FILE]` — the task brief file (same file the implementer worked from)
 - `[FINDINGS]` — the Critical/Important findings and spec gaps from the
   previous review, copied verbatim, one per bullet

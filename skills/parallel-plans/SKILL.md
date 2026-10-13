@@ -96,6 +96,7 @@ migrations — each path or glob in backticks, on this one line]
 Wave 0 (serial): Task N — [shared contracts / the "kit"]
 Wave 1 (parallel): Tasks N, N, N
 Integration (serial): Task N — [registrations, generated files, "Proposed for shared"]
+Final (serial): Task N — final verification, every suite once
 
 ---
 ```
@@ -141,10 +142,10 @@ One line on the approach when the signature and the test leave a choice
 (which library call, which data structure); a code block only for an
 algorithm they do not determine.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 4: Run the task's tests and typecheck**
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: PASS
+Run: `pytest tests/path/test.py -v` and `mypy src/path/`
+Expected: PASS; no type errors
 
 - [ ] **Step 5: Commit**
 
@@ -171,6 +172,11 @@ the same registry, barrel, or lockfile and the wave collides.
 - Waves run in order: a serial kit task first (Wave 0), then the parallel tasks
   (Wave 1), then a serial integration task that makes the frozen-file edits and
   collects each task's "Proposed for shared".
+- A wave's tasks need not be adjacent in the plan. A task that consumes
+  nothing from the tasks it would skip goes in the earliest wave whose Owns
+  it does not overlap — usually a docs task written from the spec and the
+  Interfaces blocks: `Wave 2 (parallel): Tasks 9, 16`. It needs an Owns line
+  like any wave task.
 
 Executors verify a wave with `ownership-check` (in the
 `parallel-agent-development` skill), which parses exactly this format: a task
@@ -221,6 +227,28 @@ Task 2 and Task 3 each cover their own directory and share no path.
 `src/registry.ts` and `package-lock.json` are edited only by Task 4, where
 Feature A and Feature B get registered.
 
+## Final Verification Task
+
+Every plan ends with one serial task that runs every suite once — the only
+task whose steps run whole suites. Regular tasks verify only their own test
+files and a typecheck of the packages they edit, so breakage that crosses
+packages surfaces here, once, instead of being paid for in every task.
+
+````markdown
+### Task N: Final verification
+
+**Files:** none planned — a fix goes where its failure points.
+
+- [ ] **Step 1: Run every suite**
+
+Run: [one line per suite, exact commands: each package's unit and
+integration tests, every package's typecheck, every end-to-end or browser
+suite at each configured viewport or project]
+Expected: all pass, output pristine
+
+- [ ] **Step 2: Fix each failure at its cause; re-run the failing suites and those of each package a fix touched; commit by explicit path**
+````
+
 ## What a Step Contains
 
 A step is done when the implementer can write exactly one reasonable thing
@@ -234,7 +262,9 @@ of step carries what makes it unambiguous and nothing more:
   writes the body. A body appears only for an algorithm the signature and
   tests do not determine, or for exact copy the spec fixes.
 - **A verification step:** the command to run and the output that means it
-  passed.
+  passed. In a regular task, that is the task's own test files by path and
+  a typecheck of the packages it edits. Whole-suite, end-to-end and browser
+  commands go in the final verification task.
 - **A reference to another task:** that task's Interfaces block says what
   to use; the plan does not repeat that task's code.
 
@@ -258,7 +288,9 @@ After writing the complete plan, look at the spec with fresh eyes and check the 
 
 **5. Proportion:** Compare the plan's length to the spec's. A plan several times longer than the spec it implements is a transcript of the program, not a plan. If code blocks are most of the document, replace bodies with signatures, test names and assertions, and check that each step is still unambiguous.
 
-**6. Ownership** (only for plans with a Parallel layout): Every task in a wave has an `**Owns:**` line covering every path in its Files block; Owns lines of tasks in the same wave share no path; every registry, barrel, lockfile, generated file or migration any task touches is on the frozen list and is edited only by the integration task.
+**6. Ownership** (only for plans with a Parallel layout): Every task in a wave has an `**Owns:**` line covering every path in its Files block; Owns lines of tasks in the same wave share no path; every registry, barrel, lockfile, generated file or migration any task touches is on the frozen list and is edited only by the integration task. Each docs or other leaf task sits in the earliest wave it can join, not after the tasks it does not depend on.
+
+**7. Verification:** The last task is Final verification, naming every suite's exact command. Every other task's run steps name only its own test files and a typecheck of the packages it edits.
 
 If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
 

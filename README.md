@@ -164,6 +164,8 @@ $ bash scripts/ownership-check plan.md BASE HEAD 2,3
 
 If an agent needs shared code that doesn't exist yet, it writes it in a file it owns and reports it as _proposed for shared_. An integration task folds those proposals in once the wave is done, so no agent ever waits on another.
 
+Each agent checks only what it touched: its own test files and a typecheck of the packages it edited, in its task and in every fix round. Every suite, end-to-end included, runs once, in the plan's last task. A small fix gets its re-review on the cheapest model, and a docs task runs beside whichever wave it shares no files with.
+
 > [!NOTE]
 > This repo was built this way: two parallel waves of four and two implementers, every wave ownership-clean.
 

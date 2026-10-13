@@ -34,6 +34,15 @@ test_no_pathspec_includes_all() {
   assert_contains "$out" "2 commit(s)" "all commits counted"
 }
 
+test_prints_diff_size() {
+  make_repo
+  local out
+  out=$(bash "$RP" plan.md "$BASE" HEAD "$PWD/out.diff" -- a.txt)
+  assert_contains "$out" "1 commit(s), 1 file changed, 1 insertion(+)," "pathspec-limited size"
+  out=$(bash "$RP" plan.md "$BASE" HEAD "$PWD/out.diff")
+  assert_contains "$out" "2 commit(s), 2 files changed, 2 insertions(+)," "whole-range size"
+}
+
 test_pathspec_with_no_commits_exits_3() {
   make_repo
   local rc=0

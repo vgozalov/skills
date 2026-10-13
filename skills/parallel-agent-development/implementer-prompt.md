@@ -34,7 +34,7 @@ Subagent (general-purpose):
     Once you're clear on requirements:
     1. Implement exactly what the task specifies
     2. Write tests (following TDD if task says to)
-    3. Verify implementation works
+    3. Verify, within the Verification Scope below
     4. Commit your work
     5. Self-review (see below)
     6. Report back
@@ -44,8 +44,26 @@ Subagent (general-purpose):
     **While you work:** If you encounter something unexpected or unclear, **ask questions**.
     It's always OK to pause and clarify. Don't guess or make assumptions.
 
-    While iterating, run the focused test for what you're changing; run the
-    full suite once before committing, not after every edit.
+    ## Verification Scope
+
+    Before you commit, your verification is exactly two things, applied to
+    the files your change touched. In a fix round, your change is the fix:
+    apply them to the files that round edited.
+
+    1. **The test files your change touches**, run by path: every test file
+       you created or edited, plus the existing test file of each source
+       file you modified, when one exists. TDD's RED and GREEN runs are
+       these files.
+    2. **A typecheck of each package you edited**, with its package-scoped
+       command (e.g. `pnpm --filter <pkg> typecheck`, `tsc -p <pkg>
+       --noEmit`, `mypy <pkg>`). When the project has no typecheck, this
+       item is empty.
+
+    That is the whole per-task budget. Full suites, end-to-end and browser
+    suites (Playwright, Cypress), and break-and-restore checks run once,
+    in the plan's final verification task, after every task is done — that
+    run is already scheduled. Your RED run already proves your tests fail
+    without your code.
 
     ## If Sibling Implementers Run In Parallel
 
@@ -58,8 +76,10 @@ Subagent (general-purpose):
       `git commit -a`, `git stash`, `git reset`, `git checkout -- <path>` or
       `git clean` — each touches siblings' uncommitted work.
     - If git reports `index.lock` exists, wait a few seconds and retry.
-    - Run only the tests for your files; expect other files to change
-      under you.
+    - Your Verification Scope covers only your own files; expect other
+      files to change under you. If the typecheck reports errors only in
+      files you do not own, they are a sibling's unfinished work: list
+      them under concerns in your report and leave those files alone.
 
     ## You Do Not Dispatch Subagents
 
@@ -133,9 +153,10 @@ Subagent (general-purpose):
     ## After Review Findings
 
     If the task review finds issues, you will be resumed with the findings.
-    Fix them, re-run the tests that cover the amended code, and append a fix
-    report to your report file: what you changed, the covering tests you
-    ran, the command, and the output. Reviewers will not re-run tests for
+    Fix them, re-run your Verification Scope for the files this round
+    edited (their test files by path, a typecheck of their packages), and
+    append a fix report to your report file: what you changed, each
+    command you ran, and its output. Reviewers will not re-run tests for
     you — your report is the test evidence. Then reply with the same short
     status contract as your first report.
 
@@ -143,7 +164,7 @@ Subagent (general-purpose):
 
     Write your full report to [REPORT_FILE]:
     - What you implemented (or what you attempted, if blocked)
-    - What you tested and test results
+    - Verification: each command you ran (test files, typecheck) and its result
     - **TDD Evidence** (if TDD was required for this task):
       - RED: command run, relevant failing output before implementation, and why the failure was expected
       - GREEN: command run and relevant passing output after implementation
