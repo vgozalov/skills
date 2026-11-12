@@ -1,0 +1,30 @@
+{
+  "_about": "API-equivalent USD per million tokens, used by chief-run.py for cost estimates. On a subscription this shows where usage went, not what is billed. A model missing here is reported as unpriced, never guessed. long_context rates apply per request when that request's prompt exceeds above_input_tokens. Claude transcripts give usage per request, so Claude long-context rates are applied; Codex reports one total per job, so Codex jobs are priced at short-context rates and a job whose requests ran past 272K input tokens is under-estimated.",
+  "claude": {
+    "_source": "https://platform.claude.com/docs/en/about-claude/pricing, read 2026-11-12. Every model below except Haiku 5.5 is priced the same across its whole context window.",
+    "claude-fable-5-2": { "input": 8.0, "output": 40.0, "cache_write_5m": 10.0, "cache_write_1h": 16.0, "cache_read": 0.20 },
+    "claude-fable-5-1": { "input": 10.0, "output": 50.0, "cache_write_5m": 12.5, "cache_write_1h": 20.0, "cache_read": 0.25 },
+    "claude-fable-5": { "input": 10.0, "output": 50.0, "cache_write_5m": 12.5, "cache_write_1h": 20.0, "cache_read": 1.0 },
+    "claude-opus-5-5": { "input": 4.0, "output": 20.0, "cache_write_5m": 5.0, "cache_write_1h": 8.0, "cache_read": 0.20 },
+    "claude-opus-5": { "input": 5.0, "output": 25.0, "cache_write_5m": 6.25, "cache_write_1h": 10.0, "cache_read": 0.50 },
+    "claude-sonnet-5-5": { "input": 2.0, "output": 10.0, "cache_write_5m": 2.5, "cache_write_1h": 4.0, "cache_read": 0.10 },
+    "claude-sonnet-5": { "input": 2.0, "output": 10.0, "cache_write_5m": 2.5, "cache_write_1h": 4.0, "cache_read": 0.20 },
+    "claude-haiku-5-5": {
+      "input": 0.10, "output": 0.50, "cache_write_5m": 0.125, "cache_write_1h": 0.20, "cache_read": 0.01,
+      "long_context": { "above_input_tokens": 100000, "input": 0.50, "output": 2.50, "cache_write_5m": 0.625, "cache_write_1h": 1.0, "cache_read": 0.05 }
+    }
+  },
+  "chatgpt": {
+    "_source": "https://developers.openai.com/api/docs/pricing (Standard tier, text tokens), read 2026-11-12. Short context is up to 272K input tokens per request, long context above it. Cached input is part of input; reasoning is part of output.",
+    "gpt-6-astra": { "input": 10.0, "cached_input": 1.0, "output": 50.0,
+      "long_context": { "above_input_tokens": 272000, "input": 20.0, "cached_input": 2.0, "output": 75.0 } },
+    "gpt-6.1-sol": { "input": 2.0, "cached_input": 0.10, "output": 10.0,
+      "long_context": { "above_input_tokens": 272000, "input": 4.0, "cached_input": 0.20, "output": 15.0 } },
+    "gpt-6-sol": { "input": 2.0, "cached_input": 0.20, "output": 10.0,
+      "long_context": { "above_input_tokens": 272000, "input": 4.0, "cached_input": 0.40, "output": 15.0 } },
+    "gpt-6.1-terra": { "input": 1.0, "cached_input": 0.05, "output": 5.0,
+      "long_context": { "above_input_tokens": 272000, "input": 2.0, "cached_input": 0.10, "output": 7.5 } },
+    "gpt-6-luna": { "input": 0.10, "cached_input": 0.01, "output": 0.50,
+      "long_context": { "above_input_tokens": 272000, "input": 0.20, "cached_input": 0.02, "output": 0.75 } }
+  }
+}

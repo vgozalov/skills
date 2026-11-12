@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent runs</title>
+<style>
+:root {
+  --paper: #EEF1F4; --surface: #FFFFFF; --ink: #1C2430; --muted: #5F6B7A; --line: #D5DBE3;
+  --claude: #3D4FB8; --claude-soft: #E3E6F8; --chatgpt: #0F7C6E; --chatgpt-soft: #DDF1EE;
+  --warn: #B7791F; --warn-soft: #FBF0DC; --bad: #B4232A; --ok: #2F7D32;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #151A21; --surface: #1E252F; --ink: #E4E8EE; --muted: #9AA5B4; --line: #2E3744;
+    --claude: #8C9BFF; --claude-soft: #262D52; --chatgpt: #4CC2AF; --chatgpt-soft: #173B37;
+    --warn: #E3A94A; --warn-soft: #3A2E17; --bad: #F2777D; --ok: #7BC47F;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 15px/1.45 "Avenir Next", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--claude); outline-offset: 2px; }
+
+header { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: flex-end; padding: 20px 24px 16px; }
+.title h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.title p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.title { min-width: 0; }
+#repo { overflow-wrap: anywhere; }
+.meters { display: flex; gap: 20px 32px; margin-left: auto; flex-wrap: wrap; align-items: flex-end; }
+.gauges { display: flex; gap: 20px; flex-wrap: wrap; }
+.gauge { min-width: 210px; }
+.gauge-head { display: flex; justify-content: space-between; font-size: 13px; }
+.gauge-head strong { font-weight: 600; }
+.gauge-head .claude { color: var(--claude); } .gauge-head .chatgpt { color: var(--chatgpt); }
+.bar { position: relative; height: 10px; border-radius: 5px; background: var(--line); margin: 5px 0 3px; overflow: hidden; }
+.bar.week { height: 5px; }
+.bar span { position: absolute; inset: 0 auto 0 0; border-radius: 5px; }
+.bar.claude span { background: var(--claude); } .bar.chatgpt span { background: var(--chatgpt); }
+.bar.hot span { background: var(--warn); }
+.bar .switch { position: absolute; top: -2px; bottom: -2px; left: 60%; width: 2px; background: var(--ink); opacity: .55; }
+.gauge small { color: var(--muted); font-size: 12px; }
+.spend { text-align: right; }
+.spend .total { font-size: 26px; font-weight: 600; line-height: 1.1; }
+.spend small { display: block; color: var(--muted); font-size: 12px; }
+.spend .split span { font-size: 13px; margin-left: 10px; }
+.split .claude { color: var(--claude); } .split .chatgpt { color: var(--chatgpt); }
+
+.warnings { margin: 0 24px 12px; padding: 10px 14px; border-radius: 8px; background: var(--warn-soft); border-left: 4px solid var(--warn); font-size: 13px; }
+.warnings ul { margin: 4px 0 0; padding-left: 18px; }
+.warnings[hidden] { display: none; }
+
+main { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; padding: 0 24px 24px; overflow-x: auto; }
+.col { min-height: 60vh; }
+.col h2 { display: flex; justify-content: space-between; margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.col h2 .count { font-weight: 500; }
+.col.quiet { opacity: .75; }
+.empty { color: var(--muted); font-size: 13px; padding: 10px 2px; }
+
+.card { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; cursor: pointer; }
+.card:hover { border-color: var(--muted); }
+.card h3 { margin: 0 0 2px; font-size: 15px; font-weight: 600; line-height: 1.3; }
+.card .source { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px 2px 6px; border-radius: 999px; border: 1px solid transparent; }
+.chip.claude { background: var(--claude-soft); color: var(--claude); }
+.chip.chatgpt { background: var(--chatgpt-soft); color: var(--chatgpt); }
+.chip.stopped, .chip.failed, .chip.rate_limited { background: transparent; border-color: var(--bad); color: var(--bad); }
+.chip.superseded { opacity: .5; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.chip.done .dot { opacity: .45; }
+.chip.running .dot { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.6); opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .chip.running .dot { animation: none; } }
+.card .cost { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.cost .claude { color: var(--claude); } .cost .chatgpt { color: var(--chatgpt); }
+.cost .sum { margin-left: auto; color: var(--ink); font-weight: 600; }
+
+.drawer { position: fixed; inset: 0 0 0 auto; width: min(760px, 100%); background: var(--surface); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(10, 20, 40, .18); transform: translateX(100%); transition: transform .2s ease; display: flex; flex-direction: column; z-index: 10; }
+.drawer.open { transform: none; }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+.drawer-head { display: flex; gap: 12px; align-items: flex-start; padding: 18px 20px 12px; border-bottom: 1px solid var(--line); }
+.drawer-head h2 { margin: 0; font-size: 20px; font-weight: 600; }
+.drawer-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.close { margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.drawer-body { overflow: auto; padding: 14px 20px 24px; }
+.drawer-body h3 { font-size: 14px; margin: 18px 0 6px; }
+.timeline { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+.timeline span { padding: 2px 8px; border-radius: 6px; background: var(--paper); }
+.timeline span.now { background: var(--ink); color: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+td.num, th.num { text-align: right; }
+tr.agent { cursor: pointer; }
+tr.agent:hover td, tr.agent.selected td { background: var(--paper); }
+td .prov { font-weight: 600; }
+td .prov.claude { color: var(--claude); } td .prov.chatgpt { color: var(--chatgpt); }
+tfoot td { font-weight: 600; border-bottom: none; }
+.files { display: flex; gap: 6px; flex-wrap: wrap; }
+.files button { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 13px; }
+.files button[aria-pressed="true"] { border-color: var(--ink); }
+pre.doc { white-space: pre-wrap; word-break: break-word; background: var(--paper); border-radius: 8px; padding: 12px; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; max-height: 50vh; overflow: auto; }
+.note { color: var(--muted); font-size: 12px; }
+.status-line { padding: 0 24px 8px; color: var(--muted); font-size: 12px; }
+
+@media (max-width: 720px) {
+  header { padding: 16px; }
+  .meters { margin-left: 0; }
+  .gauge { min-width: 0; flex: 1 1 100%; }
+  .spend { text-align: left; }
+  .spend .split span { margin: 0 10px 0 0; }
+  main { grid-auto-flow: row; grid-template-columns: minmax(0, 1fr); padding: 0 16px 16px; }
+  .col { min-height: 0; }
+  .warnings { margin: 0 16px 12px; }
+  .status-line { padding: 0 16px 8px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <h1>Agent runs</h1>
+    <p id="repo">Loading…</p>
+  </div>
+  <div class="meters">
+    <div class="gauges" id="gauges"></div>
+    <div class="spend" id="spend"></div>
+  </div>
+</header>
+<div class="warnings" id="warnings" hidden></div>
+<div class="status-line" id="status"></div>
+<main id="board" aria-live="polite"></main>
+
+<aside class="drawer" id="drawer" aria-hidden="true" aria-labelledby="d-title">
+  <div class="drawer-head">
+    <div><h2 id="d-title"></h2><p id="d-sub"></p></div>
+    <button class="close" id="d-close" type="button">Close</button>
+  </div>
+  <div class="drawer-body" id="d-body"></div>
+</aside>
+
+<script>
+const POLL_MS = 3000
+const COLUMNS = [
+  { label: 'Intake', phases: ['intake'] },
+  { label: 'Research', phases: ['research'] },
+  { label: 'Plan', phases: ['plan', 'plan-review', 'approval'] },
+  { label: 'Implement', phases: ['implement'] },
+  { label: 'Review', phases: ['review'] },
+  { label: 'Report', phases: ['report'] },
+  { label: 'Paused', phases: ['paused'], quiet: true },
+  { label: 'Done', phases: ['done'], quiet: true },
+]
+const PROVIDER = { claude: 'Claude', chatgpt: 'ChatGPT' }
+const $ = (id) => document.getElementById(id)
+const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+let board = null
+let openRun = null
+let openAgent = null
+let openFile = null
+let lastBoard = ''
+
+function money(value) { return value == null ? 'unpriced' : value > 0 && value < 0.005 ? '<$0.01' : '$' + value.toFixed(2) }
+function compact(n) {
+  if (!n) return '0'
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M'
+  if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k'
+  return String(n)
+}
+function shortModel(model) {
+  return String(model || '?').replace(/^claude-/, '').replace(/-\d+(-\d+)*$/, '').replace(/^gpt-[\d.]+-/, '')
+}
+function since(iso, until) {
+  if (!iso) return ''
+  const seconds = Math.max(0, ((until ? Date.parse(until) : Date.now()) - Date.parse(iso)) / 1000)
+  if (seconds < 90) return Math.round(seconds) + 's'
+  if (seconds < 5400) return Math.round(seconds / 60) + ' min'
+  return (seconds / 3600).toFixed(1) + ' h'
+}
+function tokensOf(agent) {
+  const t = agent.tokens || {}
+  return agent.provider === 'chatgpt' ? (t.input || 0) + (t.output || 0) : Object.values(t).reduce((a, b) => a + b, 0)
+}
+
+function gauge(name, reading) {
+  const label = PROVIDER[name]
+  if (!reading || reading['5h'] == null) {
+    return `<div class="gauge"><div class="gauge-head"><strong class="${name}">${label}</strong><span>no reading</span></div>
+      <div class="bar ${name}"><i class="switch" title="60% switch point"></i></div><small>Run the usage check to fill this in</small></div>`
+  }
+  const five = reading['5h'], week = reading.week ?? 0
+  const hot = five >= 90 || week >= 90 ? 'hot' : ''
+  return `<div class="gauge"><div class="gauge-head"><strong class="${name}">${label}</strong><span>${five}% of 5 h${reading.blocked ? ', blocked' : ''}</span></div>
+    <div class="bar ${name} ${hot}"><span style="width:${Math.min(five, 100)}%"></span><i class="switch" title="60% switch point"></i></div>
+    <div class="bar week ${name}"><span style="width:${Math.min(week, 100)}%"></span></div>
+    <small>${week}% of the week; the line marks the 60% switch</small></div>`
+}
+
+function renderHeader() {
+  $('repo').textContent = board.repo
+  const accounts = board.accounts || {}
+  $('gauges').innerHTML = gauge('claude', accounts.claude) + gauge('chatgpt', accounts.chatgpt)
+  const t = board.totals
+  $('spend').innerHTML = `<div class="total">${money(t.total_cost_usd)}</div>
+    <small>API-equivalent estimate, all runs</small>
+    <div class="split"><span class="claude">Claude ${money(t.claude.cost_usd)}</span><span class="chatgpt">ChatGPT ${money(t.chatgpt.cost_usd)}</span></div>`
+  const warnings = (board.git && board.git.warnings) || []
+  $('warnings').hidden = warnings.length === 0
+  $('warnings').innerHTML = warnings.length ? `<strong>Git needs attention on ${esc(board.git.branch)}</strong><ul>${warnings.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''
+  const asOf = accounts.as_of ? `usage as of ${new Date(accounts.as_of).toLocaleTimeString()}` : 'no usage reading yet'
+  $('status').textContent = `Updated ${new Date(board.generated).toLocaleTimeString()}, ${asOf}. ${board.prices_note}.`
+}
+
+function chip(agent) {
+  const state = agent.superseded ? 'superseded' : agent.status
+  const title = `${PROVIDER[agent.provider]} ${agent.model || ''}, ${agent.role}${agent.task !== '-' ? ' task ' + agent.task : ''}, ${agent.status}`
+  const task = agent.task && agent.task !== '-' ? 'T' + agent.task + ' ' : ''
+  return `<span class="chip ${agent.provider} ${esc(state)}" title="${esc(title)}"><span class="dot"></span>${esc(task + agent.role)} ${esc(shortModel(agent.model))}</span>`
+}
+
+function card(run) {
+  const t = run.totals
+  const live = run.agents.filter((a) => a.status === 'running').length
+  return `<button class="card" type="button" data-run="${esc(run.id)}">
+    <h3>${esc(run.title)}</h3>
+    <div class="source">${esc(run.source)}, ${since(run.started, run.ended)}${live ? `, ${live} running` : ''}</div>
+    <div class="chips">${run.agents.map(chip).join('') || '<span class="note">No agents yet</span>'}</div>
+    <div class="cost"><span class="claude">Claude ${money(t.claude.cost_usd)}</span><span class="chatgpt">ChatGPT ${money(t.chatgpt.cost_usd)}</span><span class="sum">${money(t.total_cost_usd)}</span></div>
+  </button>`
+}
+
+function renderBoard() {
+  $('board').innerHTML = COLUMNS.map((column) => {
+    const runs = board.runs.filter((run) => column.phases.includes(run.phase))
+    if (column.quiet && runs.length === 0) return ''
+    return `<section class="col ${column.quiet ? 'quiet' : ''}"><h2><span>${column.label}</span><span class="count">${runs.length || ''}</span></h2>
+      ${runs.map(card).join('') || '<div class="empty">Nothing here</div>'}</section>`
+  }).join('')
+}
+
+function agentRows(run) {
+  return run.agents.map((agent) => `<tr class="agent ${openAgent === agent.id ? 'selected' : ''}" data-agent="${esc(agent.id)}" tabindex="0">
+    <td><span class="prov ${agent.provider}">${PROVIDER[agent.provider]}</span></td>
+    <td>${esc(agent.model || '?')}${agent.effort ? ' (' + esc(agent.effort) + ')' : ''}</td>
+    <td>${esc(agent.role)}</td><td>${esc(agent.task)}</td>
+    <td>${esc(agent.superseded ? 'resumed later' : agent.status)}</td>
+    <td class="num">${compact(tokensOf(agent))}</td>
+    <td class="num">${agent.superseded ? '—' : money(agent.cost_usd)}</td>
+    <td class="num">${since(agent.started, agent.ended)}</td></tr>`).join('')
+}
+
+function renderDrawer() {
+  const run = board && board.runs.find((r) => r.id === openRun)
+  if (!run) return
+  const t = run.totals
+  $('d-title').textContent = run.title
+  $('d-sub').textContent = `${run.id}, ${run.source}, phase ${run.phase}`
+  const phases = (run.phases || []).map((p, i, all) => `<span class="${i === all.length - 1 ? 'now' : ''}">${esc(p.phase)} ${new Date(p.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`).join('')
+  const selected = run.agents.find((a) => a.id === openAgent)
+  const files = ['task', 'plan', 'progress', 'handoff'].filter((name) => name === 'task' || (name === 'plan' ? run.plan : run.workspace))
+  $('d-body').innerHTML = `
+    <div class="timeline">${phases}</div>
+    <h3>Agents</h3>
+    <table><thead><tr><th>Provider</th><th>Model</th><th>Role</th><th>Task</th><th>Status</th><th class="num">Tokens</th><th class="num">API-eq $</th><th class="num">Time</th></tr></thead>
+    <tbody>${agentRows(run) || '<tr><td colspan="8" class="note">No agents have reported to this run yet. Briefs start with the run tag so they show up here.</td></tr>'}</tbody>
+    <tfoot>
+      <tr><td colspan="5">Claude subtotal</td><td class="num">${compact(t.claude.tokens)}</td><td class="num">${money(t.claude.cost_usd)}</td><td></td></tr>
+      <tr><td colspan="5">ChatGPT subtotal</td><td class="num">${compact(t.chatgpt.tokens)}</td><td class="num">${money(t.chatgpt.cost_usd)}</td><td></td></tr>
+      <tr><td colspan="6">Total, API-equivalent estimate</td><td class="num">${money(t.total_cost_usd)}</td><td></td></tr>
+    </tfoot></table>
+    ${t.claude.unpriced + t.chatgpt.unpriced ? `<p class="note">${t.claude.unpriced + t.chatgpt.unpriced} agent(s) ran on a model with no price in prices.json and are left out of the totals.</p>` : ''}
+    ${selected ? `<h3>${esc(selected.role)} ${selected.task !== '-' ? 'task ' + esc(selected.task) : ''}, ${esc(selected.description || selected.model || '')}</h3><pre class="doc">${esc(selected.report || 'No reply yet.')}</pre>` : '<p class="note">Select an agent to read its reply.</p>'}
+    <h3>Files</h3>
+    <div class="files">${files.map((name) => `<button type="button" data-file="${name}" aria-pressed="${openFile === name}">${name[0].toUpperCase() + name.slice(1)}</button>`).join('')}</div>
+    <pre class="doc" id="d-file" ${openFile ? '' : 'hidden'}></pre>`
+  if (openFile) loadFile(run.id, openFile)
+}
+
+async function loadFile(runId, name) {
+  const target = $('d-file')
+  try {
+    const res = await fetch(`/file?run=${encodeURIComponent(runId)}&name=${encodeURIComponent(name)}`, { cache: 'no-store' })
+    target.textContent = res.ok ? await res.text() : `The ${name} file is not there yet.`
+  } catch { target.textContent = 'The dashboard server stopped. Start it again with chief-run.py serve.' }
+}
+
+function openDrawer(runId) {
+  if (openRun !== runId) { openAgent = null; openFile = null }
+  openRun = runId
+  $('drawer').classList.add('open'); $('drawer').setAttribute('aria-hidden', 'false')
+  renderDrawer(); $('d-close').focus()
+}
+function closeDrawer() {
+  openRun = null; $('drawer').classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true')
+}
+
+$('board').addEventListener('click', (event) => { const target = event.target.closest('[data-run]'); if (target) openDrawer(target.dataset.run) })
+$('d-close').addEventListener('click', closeDrawer)
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeDrawer() })
+$('d-body').addEventListener('click', (event) => {
+  const row = event.target.closest('[data-agent]')
+  if (row) { openAgent = openAgent === row.dataset.agent ? null : row.dataset.agent; renderDrawer(); return }
+  const file = event.target.closest('[data-file]')
+  if (file) { openFile = openFile === file.dataset.file ? null : file.dataset.file; renderDrawer() }
+})
+$('d-body').addEventListener('keydown', (event) => { if (event.key === 'Enter' && event.target.matches('[data-agent]')) event.target.click() })
+
+async function poll() {
+  try {
+    const res = await fetch('/board.json', { cache: 'no-store' })
+    const text = await res.text()
+    if (text === lastBoard) return
+    lastBoard = text
+    board = JSON.parse(text)
+    renderHeader(); renderBoard()
+    const linked = new URLSearchParams(location.search).get('run')
+    if (linked && !openRun && !poll.linkedOnce) { poll.linkedOnce = true; if (board.runs.some((r) => r.id === linked)) openDrawer(linked) }
+    else if (openRun && !openFile) renderDrawer()
+  } catch {
+    $('status').textContent = 'The dashboard server is not answering. Start it with: python3 <chief skill>/scripts/chief-run.py serve'
+  }
+}
+poll()
+setInterval(poll, POLL_MS)
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+.parallel-build/
+.chief/
+.worktrees/
+.DS_Store
+context/
+assets/.fonts/
