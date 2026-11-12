@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 (2026-11-12)
+
+- Fixed: `model-routing`'s `description` held an unquoted `: `, which is invalid YAML, so `npx skills add` and `npx skills update` refused the skill. The text is unchanged apart from a dash in place of that colon.
+- Tests: the frontmatter check now fails an unquoted description containing `: ` or ` #`.
+
 ## 1.0.0 (2026-11-12)
 
 First stable release. Every skill and the agent are self-contained: nothing here needs another plugin.

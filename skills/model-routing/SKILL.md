@@ -1,6 +1,6 @@
 ---
 name: model-routing
-description: Use when about to spawn a subagent or Codex job, when checking git state during a delegated run (auto-commit hooks, skip-worktree files, stray backups), or when asked how work was routed or what it cost. Picks the model across Claude (Haiku, Sonnet, Opus, Fable) and ChatGPT via Codex (Luna, Sol, Astra), with the orchestrator's own model as the ceiling, and balances usage between the accounts: the orchestrator's own provider first, the other once it passes 60% of its 5-hour window. Applies whichever provider conducts (Claude Code, Codex, Gemini).
+description: Use when about to spawn a subagent or Codex job, when checking git state during a delegated run (auto-commit hooks, skip-worktree files, stray backups), or when asked how work was routed or what it cost. Picks the model across Claude (Haiku, Sonnet, Opus, Fable) and ChatGPT via Codex (Luna, Sol, Astra), with the orchestrator's own model as the ceiling, and balances usage between the accounts — the orchestrator's own provider first, the other once it passes 60% of its 5-hour window. Applies whichever provider conducts (Claude Code, Codex, Gemini).
 ---
 
 # Model routing

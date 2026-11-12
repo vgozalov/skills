@@ -31,7 +31,7 @@ assert_not_contains() {
 # SKILL_DIR/SKILL.md exists, name: equals the directory name, description starts with "Use when".
 # Folded/literal descriptions (> >- | |-): the first non-empty line after "description:" is used.
 assert_skill_frontmatter() {
-  local dir=$1 file name expected desc
+  local dir=$1 file name expected desc raw
   file="$dir/SKILL.md"
   [ -f "$file" ] || { fail "$file does not exist"; return 1; }
   expected=$(basename "$dir")
@@ -52,9 +52,21 @@ assert_skill_frontmatter() {
     }
   ' "$file")
   case $desc in
-    "Use when"*) return 0 ;;
+    "Use when"*) ;;
+    *) fail "$file: description must start with 'Use when', got [$desc]"; return 1 ;;
   esac
-  fail "$file: description must start with 'Use when', got [$desc]"
+  # An unquoted single-line description is a YAML plain scalar: ": " or " #" inside it
+  # breaks the parse, and installers (npx skills) then refuse the skill.
+  raw=$(awk '
+    NR == 1 { if ($0 != "---") exit; next }
+    $0 == "---" { exit }
+    /^description:/ { v = $0; sub(/^description:[ \t]*/, "", v); print v; exit }
+  ' "$file")
+  case $raw in
+    \"*|\'*|[\>\|]*) return 0 ;;
+    *": "*|*" #"*|*:) fail "$file: unquoted description contains ': ' or ' #' (invalid YAML); quote it or reword"; return 1 ;;
+  esac
+  return 0
 }
 
 # No file under SKILL_DIR may hardcode a project path (context/, docs/plans, sprints/1-sample)

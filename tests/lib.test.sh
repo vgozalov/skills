@@ -60,6 +60,20 @@ test_frontmatter_description_must_start_with_use_when() {
   set +e; assert_skill_frontmatter d 2>/dev/null; code=$?; set -e
   assert_eq "1" "$code" "fails"
 }
+test_frontmatter_unquoted_colon_space_fails() {
+  make_skill colon colon "Use when x: y"
+  set +e; out=$(assert_skill_frontmatter colon 2>&1); code=$?; set -e
+  assert_eq "1" "$code" "fails"
+  assert_contains "$out" "invalid YAML" "explains why"
+}
+test_frontmatter_quoted_colon_space_passes() {
+  make_skill quoted quoted '"Use when x: y"'
+  assert_skill_frontmatter quoted
+}
+test_frontmatter_colon_without_space_passes() {
+  make_skill url url "Use when x:y or https://example.com"
+  assert_skill_frontmatter url
+}
 test_frontmatter_missing_skill_md_fails() {
   mkdir -p empty
   set +e; assert_skill_frontmatter empty 2>/dev/null; code=$?; set -e

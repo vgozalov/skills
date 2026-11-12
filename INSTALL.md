@@ -12,7 +12,7 @@ What gets installed:
 | `executing-plans`, `requesting-code-review`, `using-git-worktrees`, `finishing-a-development-branch`, `test-driven-development`, `systematic-debugging`, `verification-before-completion` | The skills the build hands off to: inline execution, the final code review, worktree setup, finishing the branch, and the test-first, root-cause and verify-before-claiming disciplines. |
 | `wrap-up`, `create-sprint` | Session wrap-up, and a verification sprint from a plan. |
 
-Release: `v1.0.0`. Use the tag in every command below so the skills, the agent and the scripts match.
+Release: `v1.0.1`. Use the tag in every command below so the skills, the agent and the scripts match.
 
 ## 1. Ask the user, once
 
@@ -37,16 +37,16 @@ Python must be 3.8 or newer. Missing `git`, `python3`, `npx` or `claude`: stop a
 Project scope, from the repo root:
 
 ```bash
-npx -y skills@1.7.2 add vgozalov/skills#v1.0.0 -a claude-code -a codex -y
+npx -y skills@1.7.2 add vgozalov/skills#v1.0.1 -a claude-code -a codex -y
 ```
 
 Every project:
 
 ```bash
-npx -y skills@1.7.2 add vgozalov/skills#v1.0.0 -g -a claude-code -a codex -y
+npx -y skills@1.7.2 add vgozalov/skills#v1.0.1 -g -a claude-code -a codex -y
 ```
 
-If the project lists its skills in `.agents/skills.txt`, add the line `vgozalov/skills#v1.0.0 *` there instead and run `curl -fsSL https://raw.githubusercontent.com/vgozalov/skills/v1.0.0/install.sh | bash` (add `-s -- --global` for every project).
+If the project lists its skills in `.agents/skills.txt`, add the line `vgozalov/skills#v1.0.1 *` there instead and run `curl -fsSL https://raw.githubusercontent.com/vgozalov/skills/v1.0.1/install.sh | bash` (add `-s -- --global` for every project).
 
 Check: `.claude/skills/chief/SKILL.md` exists (globally: `~/.claude/skills/chief/SKILL.md`). Call that skills folder `<skills>` below.
 
@@ -59,7 +59,7 @@ If another plugin already installs skills named `executing-plans`, `requesting-c
 The skills CLI installs skills, not agents, so fetch the agent file:
 
 ```bash
-mkdir -p .claude/agents && curl -fsSL https://raw.githubusercontent.com/vgozalov/skills/v1.0.0/agents/chief.md -o .claude/agents/chief.md
+mkdir -p .claude/agents && curl -fsSL https://raw.githubusercontent.com/vgozalov/skills/v1.0.1/agents/chief.md -o .claude/agents/chief.md
 # every project instead: mkdir -p ~/.claude/agents && curl ... -o ~/.claude/agents/chief.md
 ```
 
